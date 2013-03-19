@@ -1,12 +1,13 @@
 package oving5;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-public class TradableItem {
-	
+public class TradableItem implements Serializable{
+	private static final long serialVersionUID = -141662398742511618L;
 	private final double value;
 	private final String name;
 	private static String[] names = {"Book", "Letter", "TV", "Table", "Oven", 

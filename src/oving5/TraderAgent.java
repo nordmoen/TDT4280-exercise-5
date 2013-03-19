@@ -17,6 +17,11 @@ public class TraderAgent extends Agent {
 	private static final String ACCEPT_NEGOTIATION = "ACCEPT_NEGOTIATION";
 	private static final String REFUSE_NEGOTIATION = "REFUSE_NEGOTIATION";
 	private static final String REJECT_PROPOSAL = "REJECT_PROPOSAL";
+	private static final String IN_NEGOTIATION = "ALREADY_IN_NEGOTIATION";
+	private static final String HAVE_ITEM = "HAVE_ITEM";
+
+	//Change to disable output
+	private static final boolean DEBUG = true;
 
 	private final Set<TradableItem> wantedItems;
 	private final List<TradableItem> inventory;
@@ -69,8 +74,13 @@ public class TraderAgent extends Agent {
 	}
 
 	private void handleRequest(ACLMessage m){
-		if(m.getContent().equals(REQUEST_INVENTORY)){
+		String[] splitted = m.getContent().trim().split("=");
+		if(splitted[0].equals(REQUEST_INVENTORY)){
 			sendReply(m, ACLMessage.INFORM, this.inventory.toString());
+		}else if(splitted[0].equals(HAVE_ITEM)){
+			TradableItem item = TradableItem.parseTradeItem(splitted[1]);
+			sendReply(m, ACLMessage.INFORM, HAVE_ITEM + "=" +
+					this.inventory.contains(item));
 		}
 	}
 
@@ -80,7 +90,8 @@ public class TraderAgent extends Agent {
 
 	/**
 	 * Create and send a reply to a message, this is a convenience function
-	 * which should be used instead of doing it your self
+	 * which should be used instead of doing it your self to insure that
+	 * the message is created properly and actually sent
 	 * @param msg - The message to create a reply to
 	 * @param performative - The performative of the reply
 	 * @param message - The content of the reply
@@ -98,10 +109,12 @@ public class TraderAgent extends Agent {
 	 * @param error whether or not this message is an error or not
 	 */
 	private void logOutput(String msg, boolean error){
-		if(!error){
-			System.out.println(this.getLocalName() + ": " + msg);
-		}else{
-			System.err.println(this.getLocalName() + ": " + msg);
+		if(DEBUG){
+			if(!error){
+				System.out.println(this.getLocalName() + ": " + msg);
+			}else{
+				System.err.println(this.getLocalName() + ": " + msg);
+			}
 		}
 	}
 
@@ -189,6 +202,7 @@ public class TraderAgent extends Agent {
 	protected void handleRejectProposal(ACLMessage msg) {
 		if(!checkSender(msg))
 			return;
+		this.logOutput("Negotiation unsuccessful, agent " + msg.getSender() + " did not accept", false);
 		this.negotiationPartner = null;
 		this.handleRefuse(msg); //This should update the state of the agent
 		//to one where it will continue on
@@ -203,7 +217,7 @@ public class TraderAgent extends Agent {
 	}
 
 	protected void handleRefuse(ACLMessage msg) {
-		this.logOutput("Negotiation unsuccessful, agent " + msg.getSender() + " did not accept", false);
+		this.logOutput("Agent " + msg.getSender() + " refused the negotiation, moving on", false);
 		throw new NotImplementedException();
 		// TODO Implement the timeout and return to another negotiation
 	}
@@ -211,7 +225,7 @@ public class TraderAgent extends Agent {
 	protected void handleConfirm(ACLMessage msg) {
 		if(this.negotiationPartner != null){
 			logOutput("Got a confirm message when already in a negotiation, sending refusal", true);
-			this.sendReply(msg, ACLMessage.REJECT_PROPOSAL, REJECT_PROPOSAL);
+			this.sendReply(msg, ACLMessage.REJECT_PROPOSAL, IN_NEGOTIATION);
 		}else{
 			logOutput("Entering a new negotiation with " +
 					msg.getSender().getLocalName(), false);

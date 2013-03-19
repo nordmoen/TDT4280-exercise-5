@@ -49,8 +49,38 @@ public class TradeDeal implements Serializable {
 		return buyer;
 	}
 	
-	public String toString(){
+	/**
+	 * Pretty print the current deal, this should only be used when displaying
+	 * to user
+	 * @return - String representation of this deal
+	 */
+	public String pPrint(){
 		return this.buyer + " wants to buy " + this.item + " from " + this.trader +
 				" for " + this.tradeMoney + " and these items " + this.tradeItems;
+	}
+	
+	/**
+	 * Parse a string which should contain a deal into an TradeDeal object
+	 * @param deal - The string representing the deal, must come from the
+	 * toString() method of TradeDeal
+	 * @return - A TradeDeal
+	 */
+	public static TradeDeal parseDeal(String deal){
+		String[] splited = deal.trim().split(";");
+		TradableItem item = TradableItem.parseTradeItem(splited[0]);
+		double money = Double.parseDouble(splited[3]);
+		String[] li = splited[4].replaceAll("\\[\\]", "").split(",");
+		List<TradableItem> list = new ArrayList<TradableItem>();
+		for(String i : li){
+			list.add(TradableItem.parseTradeItem(i));
+		}
+		if(list.isEmpty())
+			return new TradeDeal(item, money, splited[2], splited[1]);
+		return new TradeDeal(item, money, list, splited[2], splited[1]);
+	}
+	
+	public String toString(){
+		return this.item + ";" + this.buyer + ";" + this.trader + ";" + this.tradeMoney
+				+ ";" + this.tradeItems;
 	}
 }

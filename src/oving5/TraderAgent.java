@@ -23,6 +23,7 @@ public class TraderAgent extends Agent {
 	private final List<TradableItem> obtained = new ArrayList<TradableItem>();
 	private double money;
 	private AID negotiationPartner = null;
+	private TradeDeal currentDeal = null;
 
 	/**
 	 * Create a new TraderAgent
@@ -170,6 +171,16 @@ public class TraderAgent extends Agent {
 	protected void handleAgree(ACLMessage msg) {
 		if(!checkSender(msg))
 			return;
+		TradeDeal d = TradeDeal.parseDeal(msg.getContent());
+		if(d.getBuyer().equals(this.getLocalName())){
+			this.obtained.add(d.getItem());
+			this.money -= d.getTradeMoney();
+			this.inventory.removeAll(d.getTradeItems());
+		}else{
+			this.inventory.remove(d.getItem());
+			this.money += d.getTradeMoney();
+			this.inventory.addAll(d.getTradeItems());
+		}
 	}
 
 	protected void handleRejectProposal(ACLMessage msg) {
@@ -183,9 +194,8 @@ public class TraderAgent extends Agent {
 	protected void handleAcceptProposal(ACLMessage msg) {
 		if(!checkSender(msg))
 			return;
-		this.sendReply(msg, ACLMessage.AGREE, ""); //This must contain the current deal
+		this.sendReply(msg, ACLMessage.AGREE, this.currentDeal.toString());
 		this.handleAgree(msg);
-		throw new NotImplementedException();
 	}
 
 	protected void handleRefuse(ACLMessage msg) {
@@ -200,8 +210,7 @@ public class TraderAgent extends Agent {
 			logOutput("Entering a new negotiation with " +
 					msg.getSender().getLocalName(), false);
 			this.negotiationPartner = msg.getSender();
-			//TODO: Implement the first proposal send back
-			throw new NotImplementedException();
+			this.sendReply(msg, ACLMessage.PROPOSE, this.currentDeal.toString());
 		}
 	}
 

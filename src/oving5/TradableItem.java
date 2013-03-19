@@ -91,5 +91,10 @@ public class TradableItem implements Serializable{
 	public static int maxUnique(){
 		return names.length;
 	}
+	
+	public static TradableItem parseTradeItem(String itemS){
+		String[] spl = itemS.trim().split(":");
+		return new TradableItem(Double.parseDouble(spl[2]), spl[1].trim());
+	}
 
 }

@@ -172,6 +172,7 @@ public class TraderAgent extends Agent {
 		if(!checkSender(msg))
 			return;
 		TradeDeal d = TradeDeal.parseDeal(msg.getContent());
+		this.logOutput(d.pPrint(), false);
 		if(d.getBuyer().equals(this.getLocalName())){
 			this.obtained.add(d.getItem());
 			this.money -= d.getTradeMoney();
@@ -181,6 +182,8 @@ public class TraderAgent extends Agent {
 			this.money += d.getTradeMoney();
 			this.inventory.addAll(d.getTradeItems());
 		}
+		this.currentDeal = null;
+		this.negotiationPartner = null;
 	}
 
 	protected void handleRejectProposal(ACLMessage msg) {
@@ -194,11 +197,14 @@ public class TraderAgent extends Agent {
 	protected void handleAcceptProposal(ACLMessage msg) {
 		if(!checkSender(msg))
 			return;
+		this.logOutput("Negotiation successful, agent " + msg.getSender() + " accepted", false);
 		this.sendReply(msg, ACLMessage.AGREE, this.currentDeal.toString());
 		this.handleAgree(msg);
 	}
 
 	protected void handleRefuse(ACLMessage msg) {
+		this.logOutput("Negotiation unsuccessful, agent " + msg.getSender() + " did not accept", false);
+		throw new NotImplementedException();
 		// TODO Implement the timeout and return to another negotiation
 	}
 
@@ -224,6 +230,7 @@ public class TraderAgent extends Agent {
 				logOutput("Already got a trading partner", false);
 				this.sendReply(msg, ACLMessage.REFUSE, REFUSE_NEGOTIATION);
 			}else{
+				//TODO: Consider proposal and decide what to do about it
 				throw new NotImplementedException();
 			}
 		}

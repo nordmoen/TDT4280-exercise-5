@@ -48,4 +48,9 @@ public class TradeDeal implements Serializable {
 	public String getBuyer() {
 		return buyer;
 	}
+	
+	public String toString(){
+		return this.buyer + " wants to buy " + this.item + " from " + this.trader +
+				" for " + this.tradeMoney + " and these items " + this.tradeItems;
+	}
 }

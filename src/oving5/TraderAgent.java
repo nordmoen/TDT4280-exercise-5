@@ -6,7 +6,10 @@ import jade.core.behaviours.CyclicBehaviour;
 import jade.lang.acl.ACLMessage;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
@@ -26,6 +29,7 @@ public class TraderAgent extends Agent {
 	private final Set<TradableItem> wantedItems;
 	private final List<TradableItem> inventory;
 	private final List<TradableItem> obtained = new ArrayList<TradableItem>();
+	private final Map<AID, Set<TradableItem>> otherInventories = new HashMap<AID, Set<TradableItem>>();
 	private double money;
 	private AID negotiationPartner = null;
 	private TradeDeal currentDeal = null;
@@ -76,16 +80,36 @@ public class TraderAgent extends Agent {
 	private void handleRequest(ACLMessage m){
 		String[] splitted = m.getContent().trim().split("=");
 		if(splitted[0].equals(REQUEST_INVENTORY)){
-			sendReply(m, ACLMessage.INFORM, this.inventory.toString());
+			sendReply(m, ACLMessage.INFORM, REQUEST_INVENTORY + "=" +
+					this.inventory.toString());
 		}else if(splitted[0].equals(HAVE_ITEM)){
 			TradableItem item = TradableItem.parseTradeItem(splitted[1]);
-			sendReply(m, ACLMessage.INFORM, HAVE_ITEM + "=" +
-					this.inventory.contains(item));
+			sendReply(m, ACLMessage.INFORM, HAVE_ITEM + "=" + item.toString() +
+					"=" + this.inventory.contains(item));
 		}
 	}
 
 	private void handleInform(ACLMessage m){
-
+		String[] splitted = m.getContent().trim().split("=");
+		if(splitted[0].equals(REQUEST_INVENTORY)){
+			Set<TradableItem> otherInventory = new HashSet<TradableItem>();
+			String[] items = splitted[1].replaceAll("\\[\\]", "").split(",");
+			for(String item : items){
+				otherInventory.add(TradableItem.parseTradeItem(item));
+			}
+			this.otherInventories.put(m.getSender(), otherInventory);
+		}else if(splitted[0].equals(HAVE_ITEM)){
+			TradableItem item = TradableItem.parseTradeItem(splitted[1]);
+			boolean agentHas = Boolean.parseBoolean(splitted[2]);
+			if(!this.otherInventories.containsKey(m.getSender())){
+				this.otherInventories.put(m.getSender(), new HashSet<TradableItem>());
+			}
+			if(agentHas){
+				this.otherInventories.get(m.getSender()).add(item);
+			}else{
+				this.otherInventories.get(m.getSender()).remove(item);
+			}
+		}
 	}
 
 	/**

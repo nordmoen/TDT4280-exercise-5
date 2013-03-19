@@ -57,6 +57,10 @@ public class TradableItem {
 		return name;
 	}
 	
+	public String toString(){
+		return "TradableItem:" + name + ":" + value;
+	}
+	
 	public static TradableItem generateItem(){
 		return new TradableItem(Math.random()*1000, 
 				names[(int) (Math.random()*names.length)]);

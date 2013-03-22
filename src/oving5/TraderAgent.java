@@ -145,6 +145,7 @@ public class TraderAgent extends Agent {
 									"money: " + this.money, true);
 			return;
 		}
+		//TODO: Finish this method so that it will act on the proposed deal
 		
 	}
 
@@ -270,7 +271,6 @@ public class TraderAgent extends Agent {
 		try {
 			DFService.register(this, desc);
 		} catch (FIPAException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		this.addBehaviour(new CyclicBehaviour() {

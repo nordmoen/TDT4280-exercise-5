@@ -16,7 +16,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 public class TraderAgent extends Agent {
@@ -24,7 +23,6 @@ public class TraderAgent extends Agent {
 	private static final String REQUEST_INVENTORY = "REQUEST_INVENTORY"; 
 	private static final String ACCEPT_NEGOTIATION = "ACCEPT_NEGOTIATION";
 	private static final String REFUSE_NEGOTIATION = "REFUSE_NEGOTIATION";
-	private static final String REJECT_PROPOSAL = "REJECT_PROPOSAL";
 	private static final String IN_NEGOTIATION = "ALREADY_IN_NEGOTIATION";
 	private static final String HAVE_ITEM = "HAVE_ITEM";
 	private static final String TRADER = "TRADER";
@@ -99,7 +97,7 @@ public class TraderAgent extends Agent {
 		String[] splitted = m.getContent().trim().split("=");
 		if(splitted[0].equals(REQUEST_INVENTORY)){
 			Set<TradableItem> otherInventory = new HashSet<TradableItem>();
-			String[] items = splitted[1].replaceAll("\\[\\]", "").split(",");
+			String[] items = splitted[1].replaceAll("[\\[\\]]", "").split(",");
 			for(String item : items){
 				otherInventory.add(TradableItem.parseTradeItem(item));
 			}
@@ -149,6 +147,18 @@ public class TraderAgent extends Agent {
 		double val = estimatedWantedValue(max);
 		return new TradeDeal(max, val, trader.getLocalName(), this.getLocalName());
 	}
+	
+	private void negotiate(){
+		TradeDeal deal = this.proposeDeal();
+		if(deal == null){
+			this.logOutput("Tried to create a new deal, but it was null, assuming " +
+					"we are done, wanted: " + this.wantedItems.toString() + "," +
+							" obtained: " + this.obtained.toString() + ", " +
+									"money: " + this.money, true);
+			return;
+		}
+		
+	}
 
 	/**
 	 * Estimate the value of the wanted item
@@ -184,7 +194,7 @@ public class TraderAgent extends Agent {
 	/**
 	 * Find a trader which has the item
 	 * @param item - The item a trader must have
-	 * @return - The AID of the trader with the item, if null, no trader has the item
+	 * @return The AID of the trader with the item, if null, no trader has the item
 	 * or this agent does not know of any other agents inventories
 	 */
 	private AID findTrader(TradableItem item){
@@ -207,7 +217,7 @@ public class TraderAgent extends Agent {
 	 * Multicast a message to all the other trader agents
 	 * @param msg - The message to broadcast, this should have been fully created, with
 	 * performative and content, this method will only add recipients
-	 * @return - True if message sent to at least one trader, false otherwise
+	 * @return True if message sent to at least one trader, false otherwise
 	 */
 	private boolean multicastMessage(ACLMessage msg){
 		DFAgentDescription desc = new DFAgentDescription();
@@ -222,7 +232,8 @@ public class TraderAgent extends Agent {
 		}
 		if(agents != null){
 			for(DFAgentDescription dfa : agents){
-				msg.addReceiver(dfa.getName());
+				if(!dfa.getName().equals(this.getName()))
+					msg.addReceiver(dfa.getName());
 			}
 			this.send(msg);
 			return true;
@@ -282,7 +293,8 @@ public class TraderAgent extends Agent {
 				ACLMessage msg = receive();
 				if(msg != null){
 					logOutput("Got " + ACLMessage.getPerformative(msg.getPerformative()) + 
-							" message with content '" + msg.getContent() + "'", false);
+							" message with content '" + msg.getContent() + "' from " +
+							msg.getSender().getLocalName(), false);
 					switch (msg.getPerformative()) {
 					case ACLMessage.REQUEST:
 						handleRequest(msg);
@@ -320,6 +332,13 @@ public class TraderAgent extends Agent {
 		ACLMessage msg = new ACLMessage(ACLMessage.REQUEST);
 		msg.setContent(REQUEST_INVENTORY);
 		this.multicastMessage(msg);
+		
+		try {
+			Thread.sleep((long) (1000*Math.random()));
+			this.negotiate();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
 	}
 
 	/**
@@ -375,8 +394,12 @@ public class TraderAgent extends Agent {
 
 	protected void handleRefuse(ACLMessage msg) {
 		this.logOutput("Agent " + msg.getSender() + " refused the negotiation, moving on", false);
-		throw new NotImplementedException();
-		// TODO Implement the timeout and return to another negotiation
+		try {
+			Thread.sleep((long) (1000*Math.random()));
+			this.negotiate();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
 	}
 
 	protected void handleConfirm(ACLMessage msg) {

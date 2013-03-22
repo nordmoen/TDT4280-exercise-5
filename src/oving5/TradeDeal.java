@@ -69,7 +69,7 @@ public class TradeDeal implements Serializable {
 		String[] splited = deal.trim().split(";");
 		TradableItem item = TradableItem.parseTradeItem(splited[0]);
 		double money = Double.parseDouble(splited[3]);
-		String[] li = splited[4].replaceAll("\\[\\]", "").split(",");
+		String[] li = splited[4].replaceAll("[\\[\\]]", "").split(",");
 		List<TradableItem> list = new ArrayList<TradableItem>();
 		for(String i : li){
 			list.add(TradableItem.parseTradeItem(i));

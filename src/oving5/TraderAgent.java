@@ -80,7 +80,7 @@ public class TraderAgent extends Agent {
 	 */
 	public TraderAgent(){
 		this((int)(Math.random()*TradableItem.maxUnique()), 
-				(int)(Math.random()*100), Math.random()*1000);
+				(int)(Math.random()*(TradableItem.maxUnique()/2)+1), Math.random()*10000);
 	}
 
 	private void handleRequest(ACLMessage m){
@@ -149,7 +149,7 @@ public class TraderAgent extends Agent {
 		double val = estimatedWantedValue(max);
 		return new TradeDeal(max, val, trader.getLocalName(), this.getLocalName());
 	}
-	
+
 	/**
 	 * Estimate the value of the wanted item
 	 * @param item - The item to estimate the value of
@@ -157,6 +157,11 @@ public class TraderAgent extends Agent {
 	 */
 	private double estimatedWantedValue(TradableItem item){
 		//TODO: Implement an actual heuristic to estimate the value
+		/*
+		 * This heuristic should take in to account the amount of money left,
+		 * the number of items left, the number of sellable items left,
+		 * possibly other things?
+		 */
 		return item.getValue();
 	}
 
@@ -186,7 +191,7 @@ public class TraderAgent extends Agent {
 		if(otherInventories.isEmpty()){
 			ACLMessage msg = new ACLMessage(ACLMessage.REQUEST);
 			msg.setContent(REQUEST_INVENTORY);
-			this.broadcastMessage(msg);
+			this.multicastMessage(msg);
 			return null;
 		}else{
 			for(AID a : otherInventories.keySet()){
@@ -199,11 +204,12 @@ public class TraderAgent extends Agent {
 	}
 
 	/**
-	 * Broadcast a message to all the other trader agents
-	 * @param msg - The message to broadcast
+	 * Multicast a message to all the other trader agents
+	 * @param msg - The message to broadcast, this should have been fully created, with
+	 * performative and content, this method will only add recipients
 	 * @return - True if message sent to at least one trader, false otherwise
 	 */
-	private boolean broadcastMessage(ACLMessage msg){
+	private boolean multicastMessage(ACLMessage msg){
 		DFAgentDescription desc = new DFAgentDescription();
 		ServiceDescription s = new ServiceDescription();
 		s.setType(TRADER);
@@ -310,6 +316,10 @@ public class TraderAgent extends Agent {
 				}
 			}
 		});
+		//Request the inventory of all the other traders
+		ACLMessage msg = new ACLMessage(ACLMessage.REQUEST);
+		msg.setContent(REQUEST_INVENTORY);
+		this.multicastMessage(msg);
 	}
 
 	/**

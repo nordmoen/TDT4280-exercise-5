@@ -145,11 +145,14 @@ public class TraderAgent extends Agent {
 							" obtained: " + this.obtained.toString() + ", " +
 									"money: " + this.money, true);
 			return;
-		}
-		//TODO: Finish this method so that it will act on the proposed deal
-        // find proposer
-        // propose counter offer.
-		
+		}else{
+            //TODO: Finish this method so that it will act on the proposed deal
+            // find proposer
+            // send deal to proposer.
+            // see what happens.
+        }
+
+
 	}
 
 	/**
@@ -445,12 +448,36 @@ public class TraderAgent extends Agent {
                         // deal is cheaper then item value, want it
                         this.sendReply(msg, ACLMessage.ACCEPT_PROPOSAL, "");
                     }
+                } else{
+                    // is seller
+                    // deal is bad, do not want.
+                    if( getDealValue(t) < this.estimatedWantedValue(t.getItem()) ){
+                        this.dealCount--;
+                        // exceeded maximum deal proposals.
+                        if(this.dealCount <= 0){
+                            this.negotiationPartner = null;
+                            this.currentDeal = null;
+                            this.sendReply(msg, ACLMessage.REJECT_PROPOSAL, "");
+                        }else{
+                            // bad deal for us counter offer.
+                            TradeDeal newDeal = counterDeal(t);
+                            if( newDeal != null ){
+                                this.currentDeal=newDeal;
+                                this.sendReply(msg, ACLMessage.PROPOSE, currentDeal.toString());
+                            }else{
+                                // could not get new deal, rejecting negotiation.
+                                this.sendReply(msg, ACLMessage.REJECT_PROPOSAL, "");
+                                this.negotiationPartner = null;
+                                this.currentDeal = null;
+                            }
+                        }
+                    }   else{
+                        // deal is good accept.
+                        this.sendReply(msg, ACLMessage.ACCEPT_PROPOSAL, "");
+                    }
+
                 }
 
-				//TODO: Consider proposal and decide what to do about it
-                // want it
-                // counter offer
-                // rubbish
 				throw new NotImplementedException();
 			}
 		}

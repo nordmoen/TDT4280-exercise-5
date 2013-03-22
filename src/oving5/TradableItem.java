@@ -2,17 +2,20 @@ package oving5;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public class TradableItem implements Serializable{
 	private static final long serialVersionUID = -141662398742511618L;
 	private final double value;
 	private final String name;
-	private static String[] names = {"Book", "Letter", "TV", "Table", "Oven", 
+	private static final String[] names = {"Book", "Letter", "TV", "Table", "Oven", 
 		"Laptop", "Tablet", "Phone", "Mice", "Keyboard", "Playstation", "Juice",
 		"Xbox"};
+	private static Map<String, Double> values = new HashMap<String, Double>();
 	
 	public TradableItem(double val, String name){
 		this.value = val;
@@ -24,9 +27,6 @@ public class TradableItem implements Serializable{
 		final int prime = 31;
 		int result = 1;
 		result = prime * result + ((name == null) ? 0 : name.hashCode());
-		long temp;
-		temp = Double.doubleToLongBits(value);
-		result = prime * result + (int) (temp ^ (temp >>> 32));
 		return result;
 	}
 
@@ -63,8 +63,13 @@ public class TradableItem implements Serializable{
 	}
 	
 	public static TradableItem generateItem(){
-		return new TradableItem(Math.random()*1000, 
-				names[(int) (Math.random()*names.length)]);
+		if(values.isEmpty()){
+			for(String s : names){
+				values.put(s, Math.random() * 1000);
+			}
+		}
+		String item = names[(int) (Math.random()*names.length)];
+		return new TradableItem(values.get(item), item);
 	}
 	
 	public static List<TradableItem> generateItems(int amount){

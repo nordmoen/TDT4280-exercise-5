@@ -3,6 +3,10 @@ package oving5;
 import jade.core.AID;
 import jade.core.Agent;
 import jade.core.behaviours.CyclicBehaviour;
+import jade.domain.DFService;
+import jade.domain.FIPAException;
+import jade.domain.FIPAAgentManagement.DFAgentDescription;
+import jade.domain.FIPAAgentManagement.ServiceDescription;
 import jade.lang.acl.ACLMessage;
 
 import java.util.ArrayList;
@@ -11,6 +15,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
 
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
@@ -22,6 +27,7 @@ public class TraderAgent extends Agent {
 	private static final String REJECT_PROPOSAL = "REJECT_PROPOSAL";
 	private static final String IN_NEGOTIATION = "ALREADY_IN_NEGOTIATION";
 	private static final String HAVE_ITEM = "HAVE_ITEM";
+	private static final String TRADER = "TRADER";
 
 	//Change to disable output
 	private static final boolean DEBUG = true;
@@ -113,6 +119,112 @@ public class TraderAgent extends Agent {
 	}
 
 	/**
+	 * Create a new deal which this agent want to bargin for. This method will
+	 * remove items from the wanted list if no trader can be found after 4 retries.
+	 * @return - A new TradeDeal if an item and a trader could be found, will
+	 * return null if no more wanted items could be found
+	 */
+	private TradeDeal proposeDeal(){
+		TradableItem max = this.maxWanted();
+		if(max == null){
+			return null;
+		}
+		AID trader = this.findTrader(max);
+		int i = 0;
+		while(trader == null){
+			trader = this.findTrader(max);
+			i++;
+			if(i >= 3){
+				//We have tried so many times, no trader has the item most likely
+				this.wantedItems.remove(max);
+				return this.proposeDeal();
+			}
+			try {
+				this.wait(100 + i*100);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
+		//Trader is not null here
+		double val = estimatedWantedValue(max);
+		return new TradeDeal(max, val, trader.getLocalName(), this.getLocalName());
+	}
+	
+	/**
+	 * Estimate the value of the wanted item
+	 * @param item - The item to estimate the value of
+	 * @return The estimated value
+	 */
+	private double estimatedWantedValue(TradableItem item){
+		//TODO: Implement an actual heuristic to estimate the value
+		return item.getValue();
+	}
+
+	/**
+	 * Get the item in the wanted set with the maximum value
+	 * @return the most valuable item
+	 */
+	private TradableItem maxWanted(){
+		TradableItem result = null;
+		double maxVal = Double.MIN_VALUE;
+		for(TradableItem t : this.wantedItems){
+			if(t.getValue() > maxVal){
+				result = t;
+				maxVal = t.getValue();
+			}
+		}
+		return result;
+	}
+
+	/**
+	 * Find a trader which has the item
+	 * @param item - The item a trader must have
+	 * @return - The AID of the trader with the item, if null, no trader has the item
+	 * or this agent does not know of any other agents inventories
+	 */
+	private AID findTrader(TradableItem item){
+		if(otherInventories.isEmpty()){
+			ACLMessage msg = new ACLMessage(ACLMessage.REQUEST);
+			msg.setContent(REQUEST_INVENTORY);
+			this.broadcastMessage(msg);
+			return null;
+		}else{
+			for(AID a : otherInventories.keySet()){
+				if(otherInventories.get(a).contains(item)){
+					return a;
+				}
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Broadcast a message to all the other trader agents
+	 * @param msg - The message to broadcast
+	 * @return - True if message sent to at least one trader, false otherwise
+	 */
+	private boolean broadcastMessage(ACLMessage msg){
+		DFAgentDescription desc = new DFAgentDescription();
+		ServiceDescription s = new ServiceDescription();
+		s.setType(TRADER);
+		desc.addServices(s);
+		DFAgentDescription[] agents = null;
+		try {
+			agents = DFService.search(this, desc);
+		} catch (FIPAException e) {
+			e.printStackTrace();
+		}
+		if(agents != null){
+			for(DFAgentDescription dfa : agents){
+				msg.addReceiver(dfa.getName());
+			}
+			this.send(msg);
+			return true;
+		}
+		return false;
+	}
+
+	/**
 	 * Create and send a reply to a message, this is a convenience function
 	 * which should be used instead of doing it your self to insure that
 	 * the message is created properly and actually sent
@@ -133,18 +245,29 @@ public class TraderAgent extends Agent {
 	 * @param error whether or not this message is an error or not
 	 */
 	private void logOutput(String msg, boolean error){
-		if(DEBUG){
-			if(!error){
+		if(!error){
+			if(DEBUG)
 				System.out.println(this.getLocalName() + ": " + msg);
-			}else{
-				System.err.println(this.getLocalName() + ": " + msg);
-			}
+		}else{
+			System.err.println(this.getLocalName() + ": " + msg);
 		}
 	}
 
 	@Override
 	protected void setup() {
 		super.setup();
+		DFAgentDescription desc = new DFAgentDescription();
+		desc.setName(this.getAID());
+		ServiceDescription d = new ServiceDescription();
+		d.setName(this.getLocalName());
+		d.setType(TRADER);
+		desc.addServices(d);
+		try {
+			DFService.register(this, desc);
+		} catch (FIPAException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		this.addBehaviour(new CyclicBehaviour() {
 			private static final long serialVersionUID = 1L;
 
@@ -209,7 +332,7 @@ public class TraderAgent extends Agent {
 		if(!checkSender(msg))
 			return;
 		TradeDeal d = TradeDeal.parseDeal(msg.getContent());
-		this.logOutput(d.pPrint(), false);
+		this.logOutput(d.pPrint() + ". Deal just struck!", false);
 		if(d.getBuyer().equals(this.getLocalName())){
 			this.obtained.add(d.getItem());
 			this.money -= d.getTradeMoney();

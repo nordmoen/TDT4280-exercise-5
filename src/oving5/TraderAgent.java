@@ -128,20 +128,8 @@ public class TraderAgent extends Agent {
 			return null;
 		}
 		AID trader = this.findTrader(max);
-		int i = 0;
-		while(trader == null){
-			trader = this.findTrader(max);
-			i++;
-			if(i >= 3){
-				//We have tried so many times, no trader has the item most likely
-				this.wantedItems.remove(max);
-				return this.proposeDeal();
-			}
-			try {
-				this.wait(100 + i*100);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
+		if(trader == null){
+			return null;
 		}
 		//Trader is not null here
 		double val = estimatedWantedValue(max);
@@ -150,7 +138,7 @@ public class TraderAgent extends Agent {
 	
 	private void negotiate(){
 		TradeDeal deal = this.proposeDeal();
-		if(deal == null){
+		if(deal == null && this.wantedItems.isEmpty()){
 			this.logOutput("Tried to create a new deal, but it was null, assuming " +
 					"we are done, wanted: " + this.wantedItems.toString() + "," +
 							" obtained: " + this.obtained.toString() + ", " +
@@ -332,13 +320,6 @@ public class TraderAgent extends Agent {
 		ACLMessage msg = new ACLMessage(ACLMessage.REQUEST);
 		msg.setContent(REQUEST_INVENTORY);
 		this.multicastMessage(msg);
-		
-		try {
-			Thread.sleep((long) (1000*Math.random()));
-			this.negotiate();
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
 	}
 
 	/**

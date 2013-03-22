@@ -37,6 +37,7 @@ public class TraderAgent extends Agent {
 	private double money;
 	private AID negotiationPartner = null;
 	private TradeDeal currentDeal = null;
+    private int dealCount = 0;
 
 	/**
 	 * Create a new TraderAgent
@@ -146,6 +147,8 @@ public class TraderAgent extends Agent {
 			return;
 		}
 		//TODO: Finish this method so that it will act on the proposed deal
+        // find proposer
+        // propose counter offer.
 		
 	}
 
@@ -163,6 +166,11 @@ public class TraderAgent extends Agent {
 		 */
 		return item.getValue();
 	}
+
+    private double estimatedSalesValue(TradableItem item){
+        // todo create heuristic.
+        return item.getValue();
+    }
 
 	/**
 	 * Get the item in the wanted set with the maximum value
@@ -320,6 +328,7 @@ public class TraderAgent extends Agent {
 		ACLMessage msg = new ACLMessage(ACLMessage.REQUEST);
 		msg.setContent(REQUEST_INVENTORY);
 		this.multicastMessage(msg);
+        this.negotiate();
 	}
 
 	/**
@@ -390,6 +399,7 @@ public class TraderAgent extends Agent {
 		}else{
 			logOutput("Entering a new negotiation with " +
 					msg.getSender().getLocalName(), false);
+            this.dealCount = 5;
 			this.negotiationPartner = msg.getSender();
 			this.sendReply(msg, ACLMessage.PROPOSE, this.currentDeal.toString());
 		}
@@ -400,15 +410,131 @@ public class TraderAgent extends Agent {
 			logOutput("No trading partner at this time, entering deal", false);
 			this.negotiationPartner = msg.getSender();
 			this.sendReply(msg, ACLMessage.CONFIRM, ACCEPT_NEGOTIATION);
+            this.dealCount = 5;
 		}else{
 			if(!msg.getSender().equals(this.negotiationPartner)){
 				logOutput("Already got a trading partner", false);
 				this.sendReply(msg, ACLMessage.REFUSE, REFUSE_NEGOTIATION);
 			}else{
+                TradeDeal t = TradeDeal.parseDeal(msg.getContent());
+                if( t.getBuyer().equals(this.getLocalName()) ){
+
+                    // do not want deal.
+                    if( getDealValue(t) >= this.estimatedWantedValue(t.getItem()) ){
+                        // reject and send new deal.
+                        this.dealCount--;
+                        // exceeded maximum deal proposals.
+                        if(this.dealCount <= 0){
+                            this.negotiationPartner = null;
+                            this.currentDeal = null;
+                            this.sendReply(msg, ACLMessage.REJECT_PROPOSAL, "");
+                        }else{
+                            // bad deal for us counter offer.
+                            TradeDeal newDeal = counterDeal(t);
+                            if( newDeal != null ){
+                                this.currentDeal=newDeal;
+                                this.sendReply(msg, ACLMessage.PROPOSE, currentDeal.toString());
+                            }else{
+                                // could not get new deal, rejecting negotiation.
+                                this.sendReply(msg, ACLMessage.REJECT_PROPOSAL, "");
+                                this.negotiationPartner = null;
+                                this.currentDeal = null;
+                            }
+                        }
+                    }else {
+                        // deal is cheaper then item value, want it
+                        this.sendReply(msg, ACLMessage.ACCEPT_PROPOSAL, "");
+                    }
+                }
+
 				//TODO: Consider proposal and decide what to do about it
+                // want it
+                // counter offer
+                // rubbish
 				throw new NotImplementedException();
 			}
 		}
-
 	}
+
+    protected TradeDeal counterDeal(TradeDeal deal){
+        // todo
+        // we buy
+        if( deal.getBuyer().equals(this.getLocalName()) ){
+            // sum wanted items.
+            // sum > money left.
+                // propose items.
+
+            if(!deal.getTradeItems().isEmpty()){
+                // set the min valued item to the first one.
+                TradableItem min = deal.getTradeItems().get(0);
+                double dealItemsValue = 0;
+                for(TradableItem item: deal.getTradeItems()){
+                    dealItemsValue += item.getValue();
+
+                    if(min.getValue() > item.getValue()){
+                        min = item;
+                    }
+                }
+
+                double inventoryItemsValue = getValueOfItems(this.inventory);
+
+                double maxItems = dealItemsValue / inventoryItemsValue;
+
+                if(maxItems >= 0.2){
+                    // do not like
+                    // remove cheapest item to improve deal in our favor.
+                    deal.getTradeItems().remove(min);
+                }
+            }
+
+            double newMoney = this.estimatedWantedValue(deal.getItem());
+            if (getDealValue(deal) >= newMoney){
+                // money = estimert price  - deal items value
+                return new TradeDeal(deal.getItem(), newMoney-getValueOfItems(deal.getTradeItems()), deal.getTradeItems(), deal.getTrader(), deal.getBuyer());
+            }
+
+        }else{
+            // we are seller.
+            return new TradeDeal(deal.getItem(), estimatedSalesValue(deal.getItem()), deal.getTradeItems(), deal.getTrader(), deal.getBuyer());
+        }
+
+        return null;
+    }
+
+    protected double getValueOfItems(Iterable<TradableItem> tradableItemList){
+        double sum = 0.0;
+        for(TradableItem item: tradableItemList){
+            sum += item.getValue();
+        }
+        return sum;
+    }
+
+    protected double getDealValue(TradeDeal tradeDeal){
+        // money + tot item value
+
+        double sum = tradeDeal.getTradeMoney();
+        for(TradableItem item: tradeDeal.getTradeItems()){
+            if (tradeDeal.getBuyer().equals(this.getLocalName())){
+            // my items
+                sum += myItemValue(item);
+            } else {
+                sum += hisItemValue(item);
+            }
+        }
+
+        return sum;
+    }
+
+    protected double myItemValue(TradableItem tradableItem){
+        // todo create better heuristic.
+        return ( tradableItem.getValue() );
+    }
+    protected double hisItemValue(TradableItem tradableItem){
+        // if we want the item return full value, else we don't care.
+        if (this.wantedItems.contains(tradableItem)){
+            return tradableItem.getValue();
+        }
+        return 0.0;
+    }
+
 }
